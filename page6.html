@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Len-Den Pro v9</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        /* Body ko flex banaya taaki layout fix rahe */
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background-color: #e5ddd5; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+
+        /* SECTION 1: Fixed Header & Stats */
+        #top-section {
+            flex-shrink: 0; /* Isko dabne mat dena */
+            z-index: 2000;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header { 
+            background: #075e54; 
+            color: white; 
+            padding: 10px 15px; 
+            display: flex; 
+            align-items: center; 
+            height: 60px; 
+        }
+
+        /* Amount Bar Alignment Fix */
+        .stats-bar { 
+            display: flex; 
+            justify-content: space-around; 
+            align-items: center;
+            padding: 10px 0; 
+            background: #fff;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .stat-item {
+            flex: 1; /* Teeno ko barabar jagah milegi */
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            border-right: 1px solid #eee;
+        }
+        .stat-item:last-child { border-right: none; }
+        .stat-item b { display: block; font-size: 14px; margin-top: 2px; }
+
+        /* SECTION 2: Chat Area - Sirf ye scroll hoga */
+        #chat-container { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            padding: 15px; 
+            display: flex; 
+            flex-direction: column; 
+            background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-attachment: fixed;
+        }
+
+        /* SECTION 3: Footer */
+        footer { 
+            flex-shrink: 0;
+            background: #f0f0f0; 
+            padding: 10px; 
+            display: flex; 
+            align-items: flex-end; 
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        /* Message Styles */
+        .message { 
+            max-width: 85%; 
+            padding: 10px; 
+            border-radius: 8px; 
+            margin-bottom: 15px; 
+            font-size: 16px; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2); 
+            position: relative; 
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+        .msg-plus { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 0; }
+        .msg-minus { align-self: flex-start; background: #ffffff; border-top-left-radius: 0; }
+        .msg-deleted { opacity: 0.5; text-decoration: line-through; background: #f0f0f0 !important; }
+        
+        .msg-info { border-top: 1px solid rgba(0,0,0,0.05); margin-top: 8px; padding-top: 5px; display: flex; justify-content: space-between; font-size: 11px; }
+
+        /* Rest of UI */
+        #chatInput { flex: 1; padding: 12px 15px; border-radius: 20px; border: 1px solid #ccc; outline: none; font-size: 16px; min-height: 45px; max-height: 120px; resize: none; font-family: inherit; }
+        .send-btn { background: #128c7e; color: white; border: none; width: 50px; height: 50px; border-radius: 50%; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        
+        #sidebar { position: fixed; left: -100%; top: 0; width: 85%; height: 100%; background: white; z-index: 3000; transition: 0.4s; box-shadow: 5px 0 15px rgba(0,0,0,0.3); }
+        #sidebar.open { left: 0; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div style="background:#075e54; color:white; padding:20px; font-size:20px;">Customer List <span onclick="toggleSidebar()" style="float:right;">&times;</span></div>
+    <div style="padding:15px; display:flex; flex-direction:column; gap:10px;">
+        <input type="text" id="cName" placeholder="Name">
+        <input type="number" id="cMobile" placeholder="Mobile">
+        <button onclick="addNewCustomer()" style="padding:12px; background:#128c7e; color:white; border:none; border-radius:8px;">Add</button>
+    </div>
+    <div id="customerList" style="overflow-y:auto; height:calc(100% - 250px);"></div>
+</div>
+
+<div id="top-section">
+    <header>
+        <button onclick="toggleSidebar()" style="background:none; border:none; color:white; font-size:24px; margin-right:15px;">❯</button>
+        <div style="flex:1">
+            <div id="headName" style="font-weight:bold;">Len-Den Pro</div>
+            <div id="headInfo" style="font-size:11px;">Chose Customer</div>
+        </div>
+        <button onclick="downloadPDF()" style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:5px; font-size:11px;">PDF</button>
+    </header>
+
+    <div class="stats-bar">
+        <div class="stat-item" style="color:#e74c3c;">TOTAL BILL<b>₹ <span id="sumBill">0</span></b></div>
+        <div class="stat-item" style="color:#27ae60;">TOTAL JAMA<b>₹ <span id="sumJama">0</span></b></div>
+        <div class="stat-item" style="color:#2980b9;">NET CREDIT<b>₹ <span id="sumNet">0</span></b></div>
+    </div>
+</div>
+
+<div id="chat-container"></div>
+
+<footer>
+    <textarea id="chatInput" placeholder="Write here..." onkeydown="handleEnter(event)"></textarea>
+    <button class="send-btn" onclick="processChat()">➤</button>
+</footer>
+
+<script>
+    let customers = JSON.parse(localStorage.getItem('ld_v9_cust')) || [];
+    let chats = JSON.parse(localStorage.getItem('ld_v9_chats')) || {};
+    let activeID = null;
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+    function handleEnter(e) {
+        if (e.key === 'Enter') {
+            const el = e.target;
+            const start = el.selectionStart;
+            const text = el.value;
+            const lastNewLine = text.lastIndexOf('\n', start - 1);
+            const nextNewLine = text.indexOf('\n', start);
+            const currentLine = text.substring(lastNewLine + 1, (nextNewLine === -1 ? text.length : nextNewLine));
+            const mathRegex = /(\d+(\.\d+)?)\s*([\+\-\*\/])\s*(\d+(\.\d+)?)/;
+            
+            if (mathRegex.test(currentLine) && !currentLine.includes('=')) {
+                try {
+                    let expression = currentLine.match(mathRegex)[0];
+                    let res = eval(expression);
+                    let newLineText = currentLine.replace(expression, `${expression} = ${res}`);
+                    el.value = text.substring(0, lastNewLine + 1) + newLineText + text.substring((nextNewLine === -1 ? text.length : nextNewLine));
+                    el.setSelectionRange(lastNewLine + 1 + newLineText.length, lastNewLine + 1 + newLineText.length);
+                } catch(err) {}
+            }
+        }
+    }
+
+    function addNewCustomer() {
+        const name = document.getElementById('cName').value;
+        if(!name) return;
+        const id = 'C' + Date.now();
+        customers.push({ id, name, mobile: document.getElementById('cMobile').value });
+        localStorage.setItem('ld_v9_cust', JSON.stringify(customers));
+        renderCustList();
+    }
+
+    function renderCustList() {
+        document.getElementById('customerList').innerHTML = customers.map(c => `
+            <div onclick="selectCust('${c.id}')" style="padding:15px; border-bottom:1px solid #eee;">
+                <b>${c.name}</b><br><small>${c.mobile}</small>
+            </div>
+        `).join('');
+    }
+
+    function selectCust(id) {
+        activeID = id;
+        const c = customers.find(x => x.id === id);
+        document.getElementById('headName').innerText = c.name;
+        document.getElementById('headInfo').innerText = c.mobile;
+        toggleSidebar();
+        renderMessages();
+    }
+
+    function processChat() {
+        if(!activeID) return alert("Select Customer");
+        const input = document.getElementById('chatInput');
+        let text = input.value.trim();
+        if(!text) return;
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if(!chats[activeID]) chats[activeID] = [];
+        chats[activeID].push({ text, time, deleted: false });
+        localStorage.setItem('ld_v9_chats', JSON.stringify(chats));
+        input.value = '';
+        renderMessages();
+    }
+
+    function renderMessages() {
+        const box = document.getElementById('chat-container');
+        box.innerHTML = '';
+        let b = 0, j = 0;
+
+        if(chats[activeID]) {
+            chats[activeID].forEach((m, i) => {
+                const isJama = m.text.includes('+');
+                let total = 0;
+                m.text.split('\n').forEach(line => {
+                    const nums = line.match(/\d+(\.\d+)?/g);
+                    if(nums) total += parseFloat(nums[nums.length-1]);
+                });
+
+                if(!m.deleted) { if(isJama) j += total; else b += total; }
+
+                box.innerHTML += `
+                    <div class="message ${isJama ? 'msg-plus' : 'msg-minus'} ${m.deleted ? 'msg-deleted' : ''}">
+                        <div>${m.text}</div>
+                        <div class="msg-info">
+                            <span style="font-weight:bold; color:#075e54;">₹${total.toFixed(2)}</span>
+                            <span style="color:#888;">${m.time} | 
+                                ${!m.deleted ? `<span onclick="delMsg(${i})" style="color:red; cursor:pointer;">🗑️</span>` : '❌'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        document.getElementById('sumBill').innerText = b.toFixed(2);
+        document.getElementById('sumJama').innerText = j.toFixed(2);
+        document.getElementById('sumNet').innerText = (j - b).toFixed(2);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function delMsg(i) {
+        chats[activeID][i].deleted = true;
+        localStorage.setItem('ld_v9_chats', JSON.stringify(chats));
+        renderMessages();
+    }
+
+    function downloadPDF() {
+        html2pdf().from(document.getElementById('chat-container')).set({ margin: 0.2, filename: 'Bill.pdf' }).save();
+    }
+    renderCustList();
+</script>
+</body>
+</html>
