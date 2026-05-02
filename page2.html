@@ -302,7 +302,12 @@
 
 <div id="sidebar">
     <div style="background:#075e54; color:white; padding:20px; font-size:20px;">Customer List <span onclick="toggleSidebar()" style="float:right;">&times;</span></div>
-    <div id="customerList" style="overflow-y:auto; height:calc(100% - 60px);"></div>
+    <div style="padding:15px; display:flex; flex-direction:column; gap:10px;">
+        <input type="text" id="cName" placeholder="Customer Name" style="padding:12px; border:1px solid #ccc; border-radius:8px;">
+        <input type="number" id="cMobile" placeholder="Mobile" style="padding:12px; border:1px solid #ccc; border-radius:8px;">
+        <button onclick="addNewCustomer()" style="padding:12px; background:#128c7e; color:white; border:none; border-radius:8px;">+ Add Customer</button>
+    </div>
+    <div id="customerList" style="overflow-y:auto; height:calc(100% - 250px);"></div>
 </div>
 
 <div id="top-section">
