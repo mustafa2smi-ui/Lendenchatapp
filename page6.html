@@ -447,7 +447,8 @@ function addNewLine(el, start, text, lastNewLine, nextNewLine) {
 <div id="chat-container"></div>
 
 <footer>
-    <textarea id="chatInput" placeholder="Aalu 20 (Enter) Pyaz 5*10..." onkeydown="handleEnter(event)"></textarea>
+  <!--  <textarea id="chatInput" placeholder="Aalu 20 (Enter) Pyaz 5*10..." onkeydown="handleEnter(event)"></textarea>-->
+   <textarea id="chatInput" placeholder="Aalu 20 (Enter) Pyaz 5*10..." onkeydown="handleEnter(event)" onblur="handleBlur()"></textarea>
     <button class="send-btn" onclick="processChat()">➤</button>
 </footer>
 
@@ -457,7 +458,36 @@ function addNewLine(el, start, text, lastNewLine, nextNewLine) {
     let activeID = null;
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
-
+function handleBlur() {
+    const el = document.getElementById('chatInput');
+    const text = el.value;
+    if (!text) return;
+    
+    // Check all lines for math expressions and calculate them
+    const lines = text.split('\n');
+    let updated = false;
+    
+    const mathRegex = /(\d+(\.\d+)?)\s*([\+\-\*\/])\s*(\d+(\.\d+)?)/;
+    
+    const updatedLines = lines.map(line => {
+        const mathMatch = line.match(mathRegex);
+        if (mathMatch && !line.includes('=')) {
+            updated = true;
+            try {
+                let expression = mathMatch[0];
+                let res = eval(expression);
+                return `${line} = ${res}`;
+            } catch(err) {
+                return line;
+            }
+        }
+        return line;
+    });
+    
+    if (updated) {
+        el.value = updatedLines.join('\n');
+    }
+}
     // Smart Calculation on Enter Press - FIXED
     function handleEnter(e) {
         if (e.key === 'Enter') {
