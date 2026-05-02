@@ -83,35 +83,54 @@
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-    // Smart Calculation on Enter Press
+    // Smart Calculation on Enter Press - FIXED
     function handleEnter(e) {
         if (e.key === 'Enter') {
+            e.preventDefault(); // Prevent default first
             const el = e.target;
             const start = el.selectionStart;
             const text = el.value;
             
-            // Current line dhoondo jahan cursor hai
+            // Current line find karo jahan cursor hai
             const lastNewLine = text.lastIndexOf('\n', start - 1);
             const nextNewLine = text.indexOf('\n', start);
             const currentLine = text.substring(lastNewLine + 1, (nextNewLine === -1 ? text.length : nextNewLine));
 
             const mathRegex = /(\d+(\.\d+)?)\s*([\+\-\*\/])\s*(\d+(\.\d+)?)/;
             
-            // Agar line me math hai aur '=' nahi hai toh calculate karein
+            // Agar line mein math hai aur '=' nahi hai toh calculate karein
             if (mathRegex.test(currentLine) && !currentLine.includes('=')) {
                 try {
                     let expression = currentLine.match(mathRegex)[0];
                     let res = eval(expression);
                     let newLineText = currentLine.replace(expression, `${expression} = ${res}`);
                     
-                    // Text replace karein bina cursor bigade
-                    el.value = text.substring(0, lastNewLine + 1) + newLineText + text.substring((nextNewLine === -1 ? text.length : nextNewLine));
+                    // Text replace karein
+                    let beforeLine = text.substring(0, lastNewLine + 1);
+                    let afterLine = text.substring((nextNewLine === -1 ? text.length : nextNewLine));
+                    el.value = beforeLine + newLineText + '\n' + afterLine;
                     
-                    // Cursor ko sahi line par rakhein (New line add hone se pehle)
-                    el.setSelectionRange(lastNewLine + 1 + newLineText.length, lastNewLine + 1 + newLineText.length);
-                } catch(err) { console.log(err); }
+                    // Cursor ko nayi line par rakhein
+                    let newCursorPos = beforeLine.length + newLineText.length + 1;
+                    el.setSelectionRange(newCursorPos, newCursorPos);
+                } catch(err) { 
+                    console.log(err);
+                    // If calculation fails, still add new line
+                    addNewLine(el, start, text, lastNewLine, nextNewLine);
+                }
+            } else {
+                // No math expression found, just add new line
+                addNewLine(el, start, text, lastNewLine, nextNewLine);
             }
         }
+    }
+
+    function addNewLine(el, start, text, lastNewLine, nextNewLine) {
+        let beforeCursor = text.substring(0, start);
+        let afterCursor = text.substring(start);
+        el.value = beforeCursor + '\n' + afterCursor;
+        let newPos = start + 1;
+        el.setSelectionRange(newPos, newPos);
     }
 
     function addNewCustomer() {
@@ -183,7 +202,7 @@
 
                 box.innerHTML += `
                     <div class="message ${isJama ? 'msg-plus' : 'msg-minus'} ${m.deleted ? 'msg-deleted' : ''}">
-                        <div>${m.text}</div>
+                        <div>${m.text.replace(/\n/g, '<br>')}</div>
                         <div class="msg-info">
                             <span class="msg-total-label">Sub-Total: ₹${msgTotal.toFixed(2)}</span>
                             <span style="color:#888;">${m.time} | 
