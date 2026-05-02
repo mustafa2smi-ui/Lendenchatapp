@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WhatsApp Len-Den</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; background-color: #e5ddd5; height: 100vh; display: flex; flex-direction: column; }
+
+        /* Sidebar */
+        #sidebar { 
+            position: fixed; left: -100%; top: 0; width: 85%; height: 100%; 
+            background: white; z-index: 1000; transition: 0.4s; box-shadow: 5px 0 15px rgba(0,0,0,0.3);
+        }
+        #sidebar.open { left: 0; }
+        .sidebar-header { background: #075e54; color: white; padding: 20px; font-size: 20px; display: flex; justify-content: space-between; }
+        .cust-form { padding: 15px; display: flex; flex-direction: column; gap: 10px; border-bottom: 2px solid #eee; }
+        .cust-form input { padding: 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        .cust-form button { padding: 12px; background: #128c7e; color: white; border: none; border-radius: 5px; font-weight: bold; }
+        .cust-list { overflow-y: auto; height: calc(100% - 300px); }
+        .cust-item { padding: 15px; border-bottom: 1px solid #f2f2f2; cursor: pointer; }
+
+        /* Main UI */
+        header { background: #075e54; color: white; padding: 10px 15px; display: flex; align-items: center; height: 60px; position: fixed; top: 0; width: 100%; z-index: 500; }
+        .toggle-btn { font-size: 24px; cursor: pointer; margin-right: 15px; background: none; border: none; color: white; }
+
+        /* Stats Bar (Calculation) */
+        .stats-bar { 
+            position: fixed; top: 60px; width: 100%; background: #fff; 
+            display: flex; justify-content: space-around; padding: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 400; font-weight: bold;
+        }
+        .text-in { color: #25d366; }
+        .text-out { color: #e74c3c; }
+
+        /* Chat Container */
+        #chat-container { 
+            flex: 1; margin-top: 105px; margin-bottom: 70px; 
+            padding: 15px; overflow-y: auto; display: flex; flex-direction: column; 
+            background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+        }
+
+        .message { max-width: 80%; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; position: relative; font-size: 16px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .msg-plus { align-self: flex-end; background: #dcf8c6; }
+        .msg-minus { align-self: flex-start; background: #ffffff; }
+        .msg-time { font-size: 10px; color: #888; display: block; text-align: right; margin-top: 4px; }
+        .del-icon { color: #ff5e5e; font-size: 12px; cursor: pointer; margin-left: 8px; }
+
+        /* Footer (Input Box) */
+        footer { 
+            position: fixed; bottom: 0; width: 100%; background: #f0f0f0; 
+            padding: 10px; display: flex; align-items: center; gap: 10px; z-index: 500;
+        }
+        #chatInput { flex: 1; padding: 12px 18px; border-radius: 25px; border: none; outline: none; font-size: 16px; }
+        .send-btn { background: #128c7e; color: white; border: none; width: 45px; height: 45px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="sidebar-header">
+        Customer List <span onclick="toggleSidebar()" style="cursor:pointer;">&times;</span>
+    </div>
+    <div class="cust-form">
+        <input type="text" id="cName" placeholder="Name">
+        <input type="text" id="cColony" placeholder="Colony">
+        <input type="number" id="cMobile" placeholder="Mobile">
+        <input type="email" id="cEmail" placeholder="Email (Optional)">
+        <button onclick="addNewCustomer()">Save Customer</button>
+    </div>
+    <div id="customerList" class="cust-list"></div>
+</div>
+
+<header>
+    <button class="toggle-btn" onclick="toggleSidebar()">❯</button>
+    <div>
+        <div id="headName" style="font-weight: bold;">Len-Den Box</div>
+        <div id="headInfo" style="font-size: 11px;">Select customer</div>
+    </div>
+</header>
+
+<div class="stats-bar">
+    <div>Deposit (+): <span id="sumIn" class="text-in">0</span></div>
+    <div>Balance (-): <span id="sumOut" class="text-out">0</span></div>
+</div>
+
+<div id="chat-container">
+    <div style="text-align: center; color: #666; margin-top: 50px;">Pehle Sidebar (❯) se customer chunein</div>
+</div>
+
+<footer>
+    <input type="text" id="chatInput" placeholder="Ex: +500 jama ya -200 udhar">
+    <button class="send-btn" onclick="processChat()">➤</button>
+</footer>
+
+<script>
+    let customers = JSON.parse(localStorage.getItem('my_cust')) || [];
+    let chats = JSON.parse(localStorage.getItem('my_chats')) || {};
+    let activeID = null;
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    function addNewCustomer() {
+        const name = document.getElementById('cName').value;
+        const colony = document.getElementById('cColony').value;
+        const mobile = document.getElementById('cMobile').value;
+        const email = document.getElementById('cEmail').value;
+
+        if(!name || !mobile) return alert("Name aur Mobile daalein!");
+
+        const id = 'ID' + Date.now();
+        customers.push({ id, name, colony, mobile, email });
+        localStorage.setItem('my_cust', JSON.stringify(customers));
+        
+        // Clear fields
+        document.querySelectorAll('.cust-form input').forEach(i => i.value = '');
+        showCustomers();
+    }
+
+    function showCustomers() {
+        const div = document.getElementById('customerList');
+        div.innerHTML = customers.map(c => `
+            <div class="cust-item" onclick="selectCust('${c.id}')">
+                <strong>${c.name}</strong><br>
+                <small>${c.colony} | ${c.mobile}</small>
+            </div>
+        `).join('');
+    }
+
+    function selectCust(id) {
+        activeID = id;
+        const c = customers.find(x => x.id === id);
+        document.getElementById('headName').innerText = c.name;
+        document.getElementById('headInfo').innerText = c.colony + " | " + c.mobile;
+        toggleSidebar();
+        renderMessages();
+    }
+
+    function processChat() {
+        if(!activeID) return alert("Pehle customer select karein!");
+        const input = document.getElementById('chatInput');
+        const val = input.value.trim();
+        if(!val) return;
+
+        if(!chats[activeID]) chats[activeID] = [];
+        
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        chats[activeID].push({ text: val, time: time });
+        
+        localStorage.setItem('my_chats', JSON.stringify(chats));
+        input.value = '';
+        renderMessages();
+    }
+
+    function deleteMsg(idx) {
+        chats[activeID].splice(idx, 1);
+        localStorage.setItem('my_chats', JSON.stringify(chats));
+        renderMessages();
+    }
+
+    function renderMessages() {
+        const box = document.getElementById('chat-container');
+        box.innerHTML = '';
+        let totalIn = 0;
+        let totalOut = 0;
+
+        if(chats[activeID]) {
+            chats[activeID].forEach((m, i) => {
+                const isPlus = m.text.includes('+');
+                const isMinus = m.text.includes('-');
+                const cls = isPlus ? 'msg-plus' : (isMinus ? 'msg-minus' : '');
+                
+                // Amount calculation
+                const num = parseFloat(m.text.replace(/[^0-9.]/g, '')) || 0;
+                if(isPlus) totalIn += num;
+                if(isMinus) totalOut += num;
+
+                box.innerHTML += `
+                    <div class="message ${cls}">
+                        ${m.text}
+                        <span class="msg-time">${m.time} <span class="del-icon" onclick="deleteMsg(${i})">✖</span></span>
+                    </div>
+                `;
+            });
+        }
+        document.getElementById('sumIn').innerText = totalIn;
+        document.getElementById('sumOut').innerText = totalOut;
+        box.scrollTop = box.scrollHeight;
+    }
+
+    showCustomers();
+</script>
+
+</body>
+</html>
