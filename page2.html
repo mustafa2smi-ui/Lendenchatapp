@@ -1,3 +1,4 @@
+<!--
 <!DOCTYPE html>
 <html lang="hi">
 <head>
@@ -199,5 +200,204 @@
     renderCustList();
 </script>
 
+</body>
+</html>
+-->
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Len-Den Final Header Fix</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        /* Yeh Body ko scroll hone se rokega */
+        html, body { 
+            height: 100%; 
+            width: 100%; 
+            overflow: hidden; 
+            position: fixed; /* Keyboard push se bachne ke liye */
+        }
+
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background-color: #e5ddd5; 
+            display: flex; 
+            flex-direction: column; 
+        }
+
+        /* HEADER SECTION: Bilkul Top par lock */
+        #top-section {
+            width: 100%;
+            background: white;
+            z-index: 1000;
+            flex-shrink: 0;
+            position: absolute; /* Absolute position se keyboard isse hila nahi payega */
+            top: 0;
+        }
+
+        header { 
+            background: #075e54; 
+            color: white; 
+            padding: 10px 15px; 
+            display: flex; 
+            align-items: center; 
+            height: 60px; 
+        }
+
+        .stats-bar { 
+            display: flex; 
+            background: #fff; 
+            border-bottom: 1px solid #ddd; 
+            padding: 10px 0;
+        }
+        
+        .stat-item { flex: 1; text-align: center; font-size: 11px; font-weight: bold; border-right: 1px solid #eee; }
+        .stat-item:last-child { border-right: none; }
+        .stat-item b { display: block; font-size: 14px; color: #333; }
+
+        /* CHAT SECTION: Sirf ye area scroll hoga */
+        #chat-container { 
+            position: absolute;
+            top: 115px; /* Top Section ki height */
+            bottom: 70px; /* Footer ki height */
+            left: 0;
+            right: 0;
+            overflow-y: auto; 
+            padding: 15px; 
+            background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-attachment: fixed;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling for mobile */
+        }
+
+        /* FOOTER: Niche fixed rahega */
+        footer { 
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: #f0f0f0; 
+            padding: 10px; 
+            display: flex; 
+            align-items: flex-end; 
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        #chatInput { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #ccc; outline: none; font-size: 16px; min-height: 45px; max-height: 120px; resize: none; }
+        .send-btn { background: #128c7e; color: white; border: none; width: 50px; height: 50px; border-radius: 50%; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+        /* Message Bubbles */
+        .message { max-width: 85%; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-size: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.2); white-space: pre-wrap; position: relative; }
+        .msg-plus { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 0; }
+        .msg-minus { align-self: flex-start; background: #ffffff; border-top-left-radius: 0; }
+        
+        /* Sidebar (Same as before) */
+        #sidebar { position: fixed; left: -100%; top: 0; width: 85%; height: 100%; background: white; z-index: 5000; transition: 0.4s; }
+        #sidebar.open { left: 0; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div style="background:#075e54; color:white; padding:20px; font-size:20px;">Customer List <span onclick="toggleSidebar()" style="float:right;">&times;</span></div>
+    <div id="customerList" style="overflow-y:auto; height:calc(100% - 60px);"></div>
+</div>
+
+<div id="top-section">
+    <header>
+        <button onclick="toggleSidebar()" style="background:none; border:none; color:white; font-size:24px; margin-right:15px;">❯</button>
+        <div style="flex:1">
+            <div id="headName" style="font-weight:bold;">Len-Den Box</div>
+            <div id="headInfo" style="font-size:11px;">Select Customer</div>
+        </div>
+        <button onclick="downloadPDF()" style="background:#e74c3c; color:white; border:none; padding:8px 12px; border-radius:5px; font-size:11px;">PDF</button>
+    </header>
+
+    <div class="stats-bar">
+        <div class="stat-item" style="color:#e74c3c;">BILL<b>₹ <span id="sumBill">0</span></b></div>
+        <div class="stat-item" style="color:#27ae60;">JAMA<b>₹ <span id="sumJama">0</span></b></div>
+        <div class="stat-item" style="color:#2980b9;">NET<b>₹ <span id="sumNet">0</span></b></div>
+    </div>
+</div>
+
+<div id="chat-container"></div>
+
+<footer>
+    <textarea id="chatInput" placeholder="Write list here..."></textarea>
+    <button class="send-btn" onclick="processChat()">➤</button>
+</footer>
+
+<script>
+    // Keyboard fix: Screen resize hone par footer aur header ko adjust karna
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            let viewHeight = window.visualViewport.height;
+            document.body.style.height = viewHeight + 'px';
+            // Scroll to bottom on keyboard open
+            setTimeout(() => {
+                const box = document.getElementById('chat-container');
+                box.scrollTop = box.scrollHeight;
+            }, 300);
+        });
+    }
+
+    // Yahan aap apna wo developer wala Edit/Enter code paste kar sakte hain
+    // Niche basic functions hain:
+    
+    let customers = JSON.parse(localStorage.getItem('ld_v10_cust')) || [];
+    let chats = JSON.parse(localStorage.getItem('ld_v10_chats')) || {};
+    let activeID = null;
+
+    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+    function selectCust(id) {
+        activeID = id;
+        const c = customers.find(x => x.id === id);
+        document.getElementById('headName').innerText = c.name;
+        document.getElementById('headInfo').innerText = c.mobile;
+        toggleSidebar();
+        renderMessages();
+    }
+
+    function processChat() {
+        if(!activeID) return;
+        const input = document.getElementById('chatInput');
+        let text = input.value.trim();
+        if(!text) return;
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if(!chats[activeID]) chats[activeID] = [];
+        chats[activeID].push({ text, time, deleted: false });
+        localStorage.setItem('ld_v10_chats', JSON.stringify(chats));
+        input.value = '';
+        renderMessages();
+    }
+
+    function renderMessages() {
+        const box = document.getElementById('chat-container');
+        box.innerHTML = '';
+        let b = 0, j = 0;
+        if(chats[activeID]) {
+            chats[activeID].forEach((m, i) => {
+                let total = 0;
+                m.text.split('\n').forEach(line => {
+                    const nums = line.match(/\d+(\.\d+)?/g);
+                    if(nums) total += parseFloat(nums[nums.length-1]);
+                });
+                if(!m.deleted) { if(m.text.includes('+')) j += total; else b += total; }
+                box.innerHTML += `<div class="message ${m.text.includes('+') ? 'msg-plus' : 'msg-minus'}">
+                    ${m.text}<br><small style="color:gray">₹${total} - ${m.time}</small>
+                </div>`;
+            });
+        }
+        document.getElementById('sumBill').innerText = b;
+        document.getElementById('sumJama').innerText = j;
+        document.getElementById('sumNet').innerText = j - b;
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function downloadPDF() { window.print(); }
+</script>
 </body>
 </html>
